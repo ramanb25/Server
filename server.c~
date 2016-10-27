@@ -139,14 +139,15 @@ int main(int Count, char *Strings[])
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 		FILE *fp;
-		   char* buff;
+		   char* buff,buf;
 
-		  
-buff="<html><head><title>test</title></head><body><img align=\"middle\" src=\"home.png\"> Raman Bansal</body></html>";
- printf("%s\n", buff );
+		
+		buff="<html><head><title>test</title></head><body><img align=\"middle\" src=\"home.png\"> Raman Bansal</body></html>";
+
+		
 		/*---Echo back anything sent---*/
 		recv(clientfd, buffer, MAXBUF, 0);
-		printf("%s\n",buffer);
+		printf("%s\n",buff);
 		send(clientfd, buff, strlen(buff), 0);
 
 		/*---Close data connection---*/
