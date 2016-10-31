@@ -10,25 +10,39 @@
 #define MY_PORT		9999
 #define MAXBUF		1024
 
+static int dbg=0;
+void debug(){
+	dbg++;
+	printf("Debug:%d\n",dbg);
+	fflush(stdin);
+}
+
+static int rr=0;
+int n;
+int round_robin(){
+	return (rr++)%n;
+}
 
 int main(){
-	int n;
 	//cout<<"Number of Servers"<<endl;
 	scanf("%d",&n);
-	printf("%d",n);
-	int ports[n];
+	
+	char* ports[n][1000];
 	
 //	cout<<"Enter Ports"<<endl;
 
-int i=0;
+	int i=0;
+
 	for(;i<n;i++)
-		scanf("%d",&ports[i]);
+		scanf("%s",ports[i]);
 
-	char* reply="HTTP/1.1 301 Moved Permanently\nServer: Apache/2.2.3\nLocation:localhost:9999\nContent-Length: 1000\nConnection:close\nContent-Type:text/html; charset=UTF-8";
+	char *head = "HTTP/1.1 301 Moved Permanently\nServer: Apache/2.2.3\nLocation: http://localhost:";
+	char *tail="\nContent-Length: 1000\nConnection: close\nContent-Type:  text/html; charset=UTF-8";
+	char *reply[1000];
 
+	
 
-//	cout<<"My Port"<<endl;
-	 int sockfd;
+	int sockfd;
 	struct sockaddr_in self;
 	char buffer[MAXBUF];
 
@@ -38,8 +52,10 @@ int i=0;
 		perror("Socket");
 		exit(errno);
 	}
+	
 	int my_port;
 	scanf("%d",&my_port);
+	
 	/*---Initialize address/port structure---*/
 	bzero(&self, sizeof(self));
 	self.sin_family = AF_INET;
@@ -69,11 +85,9 @@ int i=0;
 		/*---accept a connection (creating a data pipe)---*/
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		FILE *fp;
-		   char* buff,buf;
 
 	
-		
+		sprintf(reply,"%s%s%s",head,ports[round_robin()],tail);
 		/*---Echo back anything sent---*/
 		recv(clientfd, buffer, MAXBUF, 0);
 		printf("%s\n",reply);
