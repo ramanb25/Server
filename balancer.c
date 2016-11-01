@@ -5,15 +5,16 @@
 #include <resolv.h>
 #include <arpa/inet.h>
 #include <errno.h>
-
-
+#include<stdlib.h>
+#include<string.h>
+#define println() printf("\n");
 #define MY_PORT		9999
 #define MAXBUF		1024
 
 static int dbg=0;
 void debug(){
 	dbg++;
-	printf("Debug:%d\n",dbg);
+	printf("Debug:%d\n\n",dbg);
 	fflush(stdin);
 }
 
@@ -23,11 +24,96 @@ int round_robin(){
 	return (rr++)%n;
 }
 
+int ishttp(char *url){
+	if(url[0]=='h' && url[1]=='t' && url[2]=='t' && url[3]=='p' && url[4]==':' && url[5]=='/' && url[6]=='/')
+		return 7;
+	if(url[0]=='h' && url[1]=='t' && url[2]=='t' && url[3]=='p' && url[4]=='s' && url[5]==':' && url[6]=='/' && url[7]=='/')
+		return 8;
+	return 0;
+}
+int find(char *url){
+	int len=strlen(url);
+	int i=0;
+	for(;i<len;i++)
+		if(url[i]=='/')
+			return i+1;
+	return len;
+}
+
+void mParseUrl(char *mUrl, char** serverName, char** filepath, char** filename)
+{	
+	//debug();
+    int len=strlen(mUrl);
+    char *url = mUrl;
+
+    int skip=ishttp(url);
+//debug();
+    len=len-skip;
+    while(skip--)
+	url++;
+//	debug();
+    n = find(url);
+//debug();
+    if (n != len)
+    {	debug();
+        //*serverName = url.substr(0,n);
+
+	//char subbuff[5];
+printf("%d",n);
+println();
+	printf("%s",url);
+	printf("%d",n);
+	memcpy( *serverName, url, n );
+	debug();
+	*serverName[n] = '\0';
+	debug();
+       // *filepath = url.substr(n);
+	//debug();
+	strcpy( *filepath, &url[n-1]);
+	debug();
+        n = find(*filepath);
+        //*filename = filepath.substr(n+1);
+	strcpy( *filename, &filepath[n]);
+	debug();
+	
+	println();
+	printf("%s",*filename);
+	println();
+    }
+
+    else
+    {
+        *serverName = url;
+        *filepath = "/";
+        *filename = "";
+    }
+}
+
+int Parsefile(char* req, char* file){
+	debug();
+	printf("req= %s\n\n\n\n",req);
+	char* gethost = strstr(req, "/");
+	if(gethost!=NULL){
+		
+		debug();
+		printf("gethost=%s\n\n\n\n",gethost);
+		int i=0;
+		int len=strlen(gethost);
+		for(i=0;i<len;i++){
+			//printf("char= %c\n\n\n",gethost[i]);
+			if(gethost[i]==' ')
+				break;
+		}
+		memcpy( file, gethost, i+1 );
+		return 1;	
+	}else return -1;
+
+}
 int main(){
 	//cout<<"Number of Servers"<<endl;
 	scanf("%d",&n);
 	
-	char* ports[n][1000];
+	char ports[n][1000];
 	
 //	cout<<"Enter Ports"<<endl;
 
@@ -38,7 +124,7 @@ int main(){
 
 	char *head = "HTTP/1.1 301 Moved Permanently\nServer: Apache/2.2.3\nLocation: http://localhost:";
 	char *tail="\nContent-Length: 1000\nConnection: close\nContent-Type:  text/html; charset=UTF-8";
-	char *reply[1000];
+	char reply[1000];
 
 	
 
@@ -87,11 +173,20 @@ int main(){
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
 
 	
-		sprintf(reply,"%s%s%s",head,ports[round_robin()],tail);
+		
 		/*---Echo back anything sent---*/
 		recv(clientfd, buffer, MAXBUF, 0);
-		printf("%s\n",reply);
-		send(clientfd, reply, strlen(reply), 0);
+		char *filename;
+		char filepath[1000];
+		char* servername;
+		int len=strlen(reply);
+		Parsefile(buffer,&filepath);
+		debug();
+		printf("filepath= %s\n",filepath);
+		sprintf(reply,"%s%s%s%s",head,ports[round_robin()],filepath,tail);
+		debug();
+		printf("reply= %s\n",reply);
+		send(clientfd, reply, len, 0);
 
 		/*---Close data connection---*/
 		close(clientfd);
