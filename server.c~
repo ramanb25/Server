@@ -31,11 +31,22 @@
 #include <resolv.h>
 #include <arpa/inet.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 #define MY_PORT		9999
 #define MAXBUF		1024
 
-
+static int dbg=0;
+void debug(){
+	dbg++;
+	printf("Debug:%d\n\n",dbg);
+	fflush(stdin);
+}
 
 int send_image(int socket){
 
@@ -94,6 +105,76 @@ int send_image(int socket){
     }
 
 
+int Parsefile(char* req, char* file){
+	debug();
+	printf("req= %s\n\n\n\n",req);
+	char* gethost = strstr(req, "/");
+	if(gethost!=NULL){
+		
+		debug();
+		printf("gethost=%s\n\n\n\n",gethost);
+		int i=0;
+		int len=strlen(gethost);
+		for(i=0;i<len;i++){
+			//printf("char= %c\n\n\n",gethost[i]);
+			if(gethost[i]==' ')
+				break;
+		}
+		memcpy( file, gethost, i );
+		return 1;	
+	}else return -1;
+
+}
+
+int get_filetype(char* filename, char* filetype){
+	if (strstr(filename, ".html"))
+	    strcpy(filetype, "text/html");
+    	else if (strstr(filename, ".gif"))
+    		strcpy(filetype, "image/gif");
+   	else if (strstr(filename, ".jpg"))
+   	 	strcpy(filetype, "image/jpeg");
+   	else
+		strcpy(filetype, "text/plain");
+}
+
+/* Read the contents of FILENAME into a newly-allocated buffer.  The
+   size of the buffer is stored in *LENGTH.  Returns the buffer, which
+   the caller must free.  If FILENAME doesn't correspond to a regular
+   file, returns NULL.  */
+
+char* read_file (char* filename, size_t* length)
+{
+  int fd;
+  struct stat file_info;
+  char* buffer;
+
+  /* Open the file.  */
+  fd = open (++filename, O_RDONLY);
+
+	debug();
+	printf("%s\n",filename);
+
+  /* Get information about the file.  */
+  fstat (fd, &file_info);
+  *length = file_info.st_size;
+  /* Make sure the file is an ordinary file.  */
+
+	debug();
+	printf("%d\n",*length);
+ 
+
+  /* Allocate a buffer large enough to hold the file's contents.  */
+  buffer = (char*) malloc (*length);
+  /* Read the file into the buffer.  */
+  read (fd, buffer, *length);
+
+  debug();
+  printf("File=%s\n",buffer);
+
+  /* Finish up.  */
+  close (fd);
+  return buffer;
+}
 
 
 int main(int Count, char *Strings[])
@@ -142,13 +223,40 @@ int main(int Count, char *Strings[])
 		   char* buff,buf;
 
 		
-		buff="<html><head><title>test</title></head><body><img align=\"middle\" src=\"home.png\"> Raman Bansal</body></html>";
+		buff="HTTP/1.0 200 OK\r\nServer:Web Server\r\nContent-Type: text/html; charset=UTF-8\r\n\n<html><head><title>test</title></head><body><img align=\"middle\" src=\"home.jpg\"> Raman Bansal</body></html>";
+
+		char *head = "HTTP/1.0 200 OK\r\nServer:Web Server\r\nContent-Type: ";
+	char *tail="; charset=UTF-8\r\n\n<html><head><title>test</title></head><body><img align=\"middle\" src=\"home.jpg\"> Raman Bansal</body></html>";
+	char reply[1000];
 
 		
 		/*---Echo back anything sent---*/
 		recv(clientfd, buffer, MAXBUF, 0);
-		printf("%s\n",buff);
-		send(clientfd, buff, strlen(buff), 0);
+
+
+
+		//parse filepath
+		char *filename;
+		char filepath[1000];
+		Parsefile(buffer,&filepath);
+		debug();
+		printf("filepath %s\n",filepath);		
+
+
+		//parse filetype
+		char filetype[1000];
+		get_filetype(filepath,&filetype);
+		debug();
+		printf("filetype %s\n",filetype);
+		
+		//reply
+		size_t length;
+		sprintf(reply,"%s%s%s%s",head,filetype,tail,read_file(filepath,&length));
+		debug();
+		printf("Reply=%s\n",reply);
+		send(clientfd, reply, strlen(reply), 0);
+		memset(filepath, 0, 1000);
+
 
 		/*---Close data connection---*/
 		close(clientfd);
