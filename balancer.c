@@ -187,7 +187,10 @@ int main(){
 		debug();
 		printf("reply= %s\n",reply);
 		send(clientfd, reply, len, 0);
-
+		memset(filetype, 0, 1000);
+		memset(filepath, 0, 1000);
+		memset(reply, 0, 1000);
+		memset(buffer,0,MAXBUF);
 		/*---Close data connection---*/
 		close(clientfd);
 	}

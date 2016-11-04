@@ -183,7 +183,7 @@ int main(){
 		Parsefile(buffer,&filepath);
 		debug();
 		printf("filepath= %s\n",filepath);
-		sprintf(reply,"%s%s%s",head,ports[round_robin()],filepath,tail);
+		sprintf(reply,"%s%s%s%s",head,ports[round_robin()],filepath,tail);
 		debug();
 		printf("reply= %s\n",reply);
 		send(clientfd, reply, len, 0);
