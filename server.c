@@ -53,24 +53,18 @@ void debug(){
 char buffer[MAXBUF];
 int my_port;
 char *filename;
-char filepath[1000];
-char filetype[1000];
+
 size_t length;
-char reply[1000];
 char *head = "HTTP/1.0 200 OK\r\nServer:Web Server\r\nContent-Type: ";
 char *tail="; charset=UTF-8\r\n\n";
 char *error="Error";
 char *home="/index.html";
 int sockfd;
-char* buffer1[1000];
 struct sockaddr_in self;
 
+char* buffer1[MAXBUF] ;
 void init(){
-	memset(filetype, 0, 1000);
-	memset(filepath, 0, 1000);
-	memset(reply, 0, 1000);
-	memset(buffer,0,MAXBUF);
-	memset(buffer1,0,MAXBUF);
+	
 }
 
 int get_filepath(char* req, char* file){
@@ -123,8 +117,8 @@ int get_filetype(char* filename, char* filetype){
    the caller must free.  If FILENAME doesn't correspond to a regular
    file, returns NULL.  */
 
-
-char* read_file (char* filename, size_t* length)
+ 
+char* read_file (char* filename, size_t* length,char* file_read)
 {
   int fd;
   struct stat file_info;
@@ -133,28 +127,29 @@ char* read_file (char* filename, size_t* length)
   /* Open the file.  */
   fd = open (++filename, O_RDONLY);
 
-	//debug();
-	//printf("%s\n",filename);
+	debug();
+	printf("FILENAME=%s\n",filename);
 
   /* Get information about the file.  */
   fstat (fd, &file_info);
   *length = file_info.st_size;
   /* Make sure the file is an ordinary file.  */
 
-	//debug();
-	//printf("%d\n",*length);
+	debug();
+	printf("%d\n",*length);
  
 
   /* Allocate a buffer large enough to hold the file's contents.  */
-  //buffer1 = (char*) malloc (*length);
+ 
 	//debug();
   //printf("File=%s\n",buffer1);
 
   /* Read the file into the buffer.  */
   read (fd, buffer1, *length);
 
-  //debug();
-  //printf("File=%s\n",buffer1);
+  debug();
+  printf("File=%s\n",buffer1);
+	strcpy(file_read,buffer1);
 
   /* Finish up.  */
   close (fd);
@@ -167,15 +162,56 @@ void send_message(int fd,char *reply){
 	send(fd, reply,strlen(reply),0);
 }
 
-
-
-isHTTP(){
-	if(strstr(buffer,"HTTP")!=NULL)
+isHTTP(char* req){
+	if(strstr(req,"HTTP")!=NULL)
 		return 1;
 	return 0;
 }
 
+
+void handle_connection(int clientfd){
+
+		
+		char filepath[1000];
+		char filetype[1000];
+		char reply[1000];
+		char req[1000];
+		
+		recv(clientfd, req, MAXBUF, 0);
+
+
+		if(isHTTP(req)){
+			//parse filepath
+			get_filepath(req,filepath);		
+
+			//parse filetype
+			get_filetype(filepath,filetype);
+		
+			//reply
+			char* file_read[1000];
+			read_file(filepath,&length,file_read);
+			sprintf(reply,"%s%s%s%s",head,filetype,tail,file_read);
+
+			debug();
+			printf("%s\n", reply);
+			//free(file_read);
+		}else{
+			sprintf(reply,"%s",error);
+		}
+		send_message(clientfd, reply);
+		
+		memset(filetype, 0, 1000);
+		memset(filepath, 0, 1000);
+		memset(reply, 0, 1000);
+		memset(req,0,1000);
+
+		printf("EXIT");
+		/*---Close data connection---*/
+		close(clientfd);
+
+}
 void server(){
+
 /*---Forever... ---*/
 	while (1)
 	{	int clientfd;
@@ -184,37 +220,38 @@ void server(){
 
 		/*---accept a connection (creating a data pipe)---*/
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
+
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		FILE *fp;
-
-
+		printf("fork()");
+		int child_pid = fork ();
+		    if (child_pid == 0) {
+		      /* This is the child process.  It shouldn't use stdin or stdout,
+			 so close them.  */
+		      close (STDIN_FILENO);
+		      //close (STDOUT_FILENO);
+		      /* Also this child process shouldn't do anything with the
+			 listening socket.  */
+		      close (sockfd);
+		      /* Handle a request from the connection.  We have our own copy
+			 of the connected socket descriptor.  */
+			printf("Handle");
+		      handle_connection (clientfd);
+		      /* All done; close the connection socket, and end the child
+			 process.  */
+		      close (clientfd);
+			printf("EXIT");
+		      exit (0);
+			printf("EXIT");
+		    }
+		    else if (child_pid > 0) {
+		      /* This is the parent process.  The child process handles the
+			 connection, so we don't need our copy of the connected socket
+			 descriptor.  Close it.  Then continue with the loop and
+			 accept another connection.  */
+		      close (clientfd);
+			//exit(0);
+		    }	
 		
-
-		
-		/*---Echo back anything sent---*/
-		recv(clientfd, buffer, MAXBUF, 0);
-
-
-		if(isHTTP()){
-		//parse filepath
-		get_filepath(buffer,filepath);		
-
-		//parse filetype
-		get_filetype(filepath,filetype);
-		
-		//reply
-		char* file_read=read_file(filepath,&length);
-		sprintf(reply,"%s%s%s%s",head,filetype,tail,file_read);
-		}else{
-			sprintf(reply,"%s",error);
-		}
-		send_message(clientfd, reply);
-		init();
-
-
-
-		/*---Close data connection---*/
-		close(clientfd);
 	}
 
 }
