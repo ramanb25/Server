@@ -10,7 +10,7 @@ To begin using this Server, choose one of the following options to get started:
 
 ## Bugs and Issues
 
-Have a bug or an issue with this template? [Open a new issue](https://github.com/ramanb25/Server/issues) here on GitHub.
+Have a bug or an issue with the code? [Open a new issue](https://github.com/ramanb25/Server/issues) here on GitHub.
 
 
 ## Files
