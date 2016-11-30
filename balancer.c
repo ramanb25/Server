@@ -18,10 +18,15 @@ void debug(){
 	fflush(stdin);
 }
 
+int elastic[1000];
 static int rr=0;
 int n;
 int round_robin(){
-	return (rr++)%n;
+		while(1){
+			if(elastic[rr%n]==1)
+				{printf("rr%d",(rr)%n);return (rr++)%n;}
+			rr++;
+		}
 }
 
 int ishttp(char *url){
@@ -117,12 +122,14 @@ int main(){
 	
 //	cout<<"Enter Ports"<<endl;
 
-	int i=0;
+	int i;
+	for(i=0;i<n;i++)
+		elastic[i]=1;
 
-	for(;i<n;i++)
+	for(i=0;i<n;i++)
 		scanf("%s",ports[i]);
 
-	char *head = "HTTP/1.1 301 Moved Permanently\nServer: Apache/2.2.3\nLocation: http://localhost:";
+	char *head = "HTTP/1.1 301 Moved Permanently\nServer: Apache/2.2.3\nLocation: http://";
 	char *tail="\nContent-Length: 1000\nConnection: close\nContent-Type:  text/html; charset=UTF-8";
 	char reply[1000];
 
@@ -187,10 +194,7 @@ int main(){
 		debug();
 		printf("reply= %s\n",reply);
 		send(clientfd, reply, len, 0);
-		memset(filetype, 0, 1000);
-		memset(filepath, 0, 1000);
-		memset(reply, 0, 1000);
-		memset(buffer,0,MAXBUF);
+
 		/*---Close data connection---*/
 		close(clientfd);
 	}

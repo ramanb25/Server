@@ -1,30 +1,3 @@
-/* simple-server.c
- *
- * Copyright (c) 2000 Sean Walton and Macmillan Publishers.  Use may be in
- * whole or in part in accordance to the General Public License (GPL).
- *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
- * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
- * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
- * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
- * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
- * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
- * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
- * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
- * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
- * SUCH DAMAGE.
-*/
-
-/*****************************************************************************/
-/*** simple-server.c                                                       ***/
-/***                                                                       ***/
-/*****************************************************************************/
-
-/**************************************************************************
-*	This is a simple echo server.  This demonstrates the steps to set up
-*	a streaming server.
-**************************************************************************/
 #include <stdio.h>
 #include <errno.h>
 #include <sys/socket.h>
@@ -40,7 +13,7 @@
 #include <unistd.h>
 
 #define MY_PORT		9999
-#define MAXBUF		1024
+#define MAXBUF		200000
 
 static int dbg=0;
 void debug(){
@@ -55,42 +28,56 @@ int my_port;
 char *filename;
 
 size_t length;
-char *head = "HTTP/1.0 200 OK\r\nServer:Web Server\r\nContent-Type: ";
+static char *http_200 = "HTTP/1.1 200 OK\r\nServer:The Server\r\nContent-Type: ";
 char *tail="; charset=UTF-8\r\n\n";
-char *error="Error";
-char *home="/index.html";
+static char *error="Error";
+static char *home="/index.html";
+static char* error_404 = 
+  "HTTP/1.0 404 Not Found\n"
+  "Content-type: text/html\n"
+  "\n"
+  "<html>\n"
+  " <body>\n"
+  "  <h1>Not Found</h1>\n"
+  "  <p>The requested URL was not found on this server.</p>\n"
+  " </body>\n"
+  "</html>\n";
+
+static char* not_HTTP = 
+  "HTTP/1.0 404 Not Found\n"
+  "Content-type: text/html\n"
+  "\n"
+  "<html>\n"
+  " <body>\n"
+  "  <h1>Only HTTP req</h1>\n"
+  "  <p>The requested URL was not found on this server.</p>\n"
+  " </body>\n"
+  "</html>\n";
 int sockfd;
 struct sockaddr_in self;
 
-char* buffer1[MAXBUF] ;
+
 void init(){
 	
 }
 
 int get_filepath(char* req, char* file){
-	debug();
-	printf("req= %s\n\n\n\n",req);
-	char* gethost = strstr(req, "/");
-	if(gethost!=NULL){
+	//debug();
+	//printf("req= %s\n\n\n\n",req);
+	//char* gethost = strstr(req, "/");
+	if(req!=NULL){
 		
-		//debug();
-		//printf("gethost=%s\n\n\n\n",gethost);
 		int i=0;
-		int len=strlen(gethost);
+		int len=strlen(req);
 		for(i=0;i<len;i++){
-			//printf("char= %c\n\n\n",gethost[i]);
-			if(gethost[i]==' ')
+			if(req[i]=='?')
 				break;
 		}
 		if(i!=1)
-			memcpy( file, gethost, i );
+			memcpy( file, req, i );
 		else{
 			memcpy( file, home, strlen(home) );
 		}
-		
-
-		//debug();
-		//printf("filepath %s\n",filepath);
 		return 1;	
 	}else{ 	
 		return -1;
@@ -98,27 +85,30 @@ int get_filepath(char* req, char* file){
 
 }
 
+
 int get_filetype(char* filename, char* filetype){
 	if (strstr(filename, ".html"))
-	    strcpy(filetype, "text/html");
+	    strcpy(filetype, "text/html\r\n");
     	else if (strstr(filename, ".gif"))
     		strcpy(filetype, "image/gif");
-   	else if (strstr(filename, ".jpg"))
-   	 	strcpy(filetype, "image/jpeg");
+   	else if (strstr(filename, ".jpg")){
+   	 	strcpy(filetype, "image/jpeg\r\n");
+		return 1;}
+	else if (strstr(filename, ".png")){
+   	 	strcpy(filetype, "image/png\r\n");
+		return 1;}
    	else
-		strcpy(filetype, "text/plain");
-	
-	//debug();
-	//printf("filetype %s\n",filetype);
+		strcpy(filetype, "");
+return 0;
 }
 
 /* Read the contents of FILENAME into a newly-allocated buffer.  The
    size of the buffer is stored in *LENGTH.  Returns the buffer, which
    the caller must free.  If FILENAME doesn't correspond to a regular
    file, returns NULL.  */
-
+char* buffer1[MAXBUF] ;
  
-char* read_file (char* filename, size_t* length,char* file_read)
+int read_file (char* filename, size_t* length,char* file_read)
 {
   int fd;
   struct stat file_info;
@@ -129,6 +119,10 @@ char* read_file (char* filename, size_t* length,char* file_read)
 
 	debug();
 	printf("FILENAME=%s\n",filename);
+	
+  if(fd==-1){
+	return -1;	
+  }
 
   /* Get information about the file.  */
   fstat (fd, &file_info);
@@ -140,30 +134,35 @@ char* read_file (char* filename, size_t* length,char* file_read)
  
 
   /* Allocate a buffer large enough to hold the file's contents.  */
- 
-	//debug();
-  //printf("File=%s\n",buffer1);
+ //char* buffer1[MAXBUF] ;
+	debug();
+  printf("File=%s\n",buffer1);
 
   /* Read the file into the buffer.  */
   read (fd, buffer1, *length);
 
   debug();
-  printf("File=%s\n",buffer1);
+  printf("File=%s\n\n\n",buffer1);
 	strcpy(file_read,buffer1);
 
   /* Finish up.  */
-  close (fd);
-  return buffer1;
+ // close (fd);
+debug();
+  return 1;
 }
 
-void send_message(int fd,char *reply){
-	//debug();	
-	//printf("Reply=%s\n",reply);	
+void send_message(int fd,char *reply){	
 	send(fd, reply,strlen(reply),0);
 }
 
 isHTTP(char* req){
 	if(strstr(req,"HTTP")!=NULL)
+		return 1;
+	return 0;
+}
+
+isGET(char* req){
+	if(strstr(req,"GET")!=NULL)
 		return 1;
 	return 0;
 }
@@ -174,30 +173,67 @@ void handle_connection(int clientfd){
 		
 		char filepath[1000];
 		char filetype[1000];
-		char reply[1000];
+		char reply[200000];
 		char req[1000];
 		
 		recv(clientfd, req, MAXBUF, 0);
-
-
-		if(isHTTP(req)){
-			//parse filepath
-			get_filepath(req,filepath);		
-
-			//parse filetype
-			get_filetype(filepath,filetype);
 		
-			//reply
-			char* file_read[1000];
-			read_file(filepath,&length,file_read);
-			sprintf(reply,"%s%s%s%s",head,filetype,tail,file_read);
+		char method[100],protocal[100],url[100];
+		sscanf(req,"%s %s %s",method,url,protocal);
+		
+		printf("req=\n%s\n\n\n",req);
+		//printf("DATA=%s %s %s",method,url,protocal);
 
+		if(isHTTP(protocal)){
 			debug();
-			printf("%s\n", reply);
-			//free(file_read);
+			if(isGET(method)){
+			debug();
+			printf("egjhugie\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+				if(get_filepath(url,filepath)!=-1){
+				debug();
+				printf("euoe");	
+					
+					int type=get_filetype(filepath,filetype);
+
+					char file_read[200000];
+				
+					if(read_file(filepath,&length,file_read)!=-1){
+						printf("file=%s\n",buffer1);
+						if(type)
+						sprintf(reply,"%s%s%s%d%s%s",http_200,filetype,"Content-Length:",length,"\r\n",buffer1+4);
+
+						else
+						sprintf(reply,"%s%s%s%s",http_200,filetype,tail,buffer1);
+
+					}
+
+
+
+					else{	printf("file=\n");
+						sprintf(reply,"%s",error_404);}
+
+					debug();
+					printf("yo%s\n", reply);
+				}
+				else{
+					debug();
+				printf("euoes	");
+					sprintf(reply,"%s",error_404);}
+
+				printf("euoes	");
+			}else{
+				sprintf(reply,"%s",error);
+			}
+			
 		}else{
-			sprintf(reply,"%s",error);
+			sprintf(reply,"%s",not_HTTP);
 		}
+		int j=0;
+		printf("euoe\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
+		//for(;j<10000000;j++){
+		//	int a=2*3;		
+		//}
+		printf("%s\n\n\n\n",reply);
 		send_message(clientfd, reply);
 		
 		memset(filetype, 0, 1000);
@@ -205,7 +241,6 @@ void handle_connection(int clientfd){
 		memset(reply, 0, 1000);
 		memset(req,0,1000);
 
-		printf("EXIT");
 		/*---Close data connection---*/
 		close(clientfd);
 
@@ -222,7 +257,7 @@ void server(){
 		clientfd = accept(sockfd, (struct sockaddr*)&client_addr, &addrlen);
 
 		printf("%s:%d connected\n", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
-		printf("fork()");
+	//	printf("fork()");
 		int child_pid = fork ();
 		    if (child_pid == 0) {
 		      /* This is the child process.  It shouldn't use stdin or stdout,
@@ -234,14 +269,14 @@ void server(){
 		      close (sockfd);
 		      /* Handle a request from the connection.  We have our own copy
 			 of the connected socket descriptor.  */
-			printf("Handle");
+			//printf("Handle");
 		      handle_connection (clientfd);
 		      /* All done; close the connection socket, and end the child
 			 process.  */
 		      close (clientfd);
-			printf("EXIT");
+			//printf("EXIT");
 		      exit (0);
-			printf("EXIT");
+			//printf("EXIT");
 		    }
 		    else if (child_pid > 0) {
 		      /* This is the parent process.  The child process handles the
